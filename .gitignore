@@ -39,3 +39,51 @@
 
 # debug information files
 *.dwo
+
+# Build directories
+build/
+Build/
+cmake_build_debug/
+cmake_build_release/
+cmake-build-*/
+
+# CMake cache and generated files
+CMakeCache.txt
+CMakeFiles/
+*.cmake
+Makefile
+cmake_install.cmake
+
+# IDE and Editor directories
+.vscode/
+.idea/
+.vs/
+.code-workspace
+
+# Editor temporary files
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Clang-specific
+compile_commands.json
+
+# Dependency management
+vcpkg_installed/
+conan/
+.conan2/
+
+# Test outputs
+*.gcov
+*.gcda
+*.gcno
+coverage/
+
+# Local development and temporary files
+.local/
+local_build/
+*.tmp
+*.bak
+*.log
