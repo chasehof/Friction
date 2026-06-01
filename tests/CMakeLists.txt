@@ -1,9 +1,9 @@
 # Tests for Friction
 
-# Option to download/fetch testing dependencies
 include(FetchContent)
 
-# Example: Using Google Test
+# Optional: Google Test integration
+# Uncomment to enable GTest
 # FetchContent_Declare(
 #     googletest
 #     GIT_REPOSITORY https://github.com/google/googletest.git
@@ -11,7 +11,11 @@ include(FetchContent)
 # )
 # FetchContent_MakeAvailable(googletest)
 
-# Add your test executables here
-# add_executable(friction_tests test_lock_free_queue.cpp)
+# Example test executable (uncomment when you have tests)
+# add_executable(friction_tests
+#     test_ringbuffer.cpp
+#     test_telemetry.cpp
+# )
 # target_link_libraries(friction_tests PRIVATE Friction gtest_main)
 # add_test(NAME FrictionTests COMMAND friction_tests)
+
