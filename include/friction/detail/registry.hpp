@@ -34,7 +34,8 @@ namespace friction::detail {
 /// once, by the owning thread, before that thread records anything.
 struct RegisteredThread {
     RegisteredThread(std::size_t ordinal, const Histogram::Config& config) noexcept
-        : state(config, ordinal) {}
+        : state(config, ordinal) {
+    }
 
     RegisteredThread* next = nullptr;
     ThreadState state;
@@ -42,7 +43,7 @@ struct RegisteredThread {
 
 /// Process-wide set of threads that have recorded a measurement.
 class Registry final {
-public:
+    public:
     /// This thread's state, linking the thread in on first use.
     ///
     /// The pointer is held without a destructor so that exiting the thread does
@@ -74,27 +75,14 @@ public:
 
     [[nodiscard]] static std::size_t size() noexcept {
         std::size_t count = 0;
-        for (auto* node = head().load(std::memory_order_acquire); node != nullptr; node = node->next) {
+        for (auto* node = head().load(std::memory_order_acquire); node != nullptr;
+             node = node->next) {
             ++count;
         }
         return count;
     }
 
-    /// Frees every node and empties the registry.
-    ///
-    /// The registry deliberately outlives threads, so this exists for tests and
-    /// for hosts that rebuild their world from scratch. Calling it while any
-    /// thread is still measuring leaves dangling references.
-    static void destroyAll() noexcept {
-        auto* node = head().exchange(nullptr, std::memory_order_acq_rel);
-        while (node != nullptr) {
-            auto* next = node->next;
-            delete node;
-            node = next;
-        }
-    }
-
-private:
+    private:
     [[nodiscard]] static std::atomic<RegisteredThread*>& head() noexcept {
         static std::atomic<RegisteredThread*> registryHead{nullptr};
         return registryHead;
@@ -115,7 +103,7 @@ private:
         do {
             published->next = observed;
         } while (!head().compare_exchange_weak(observed, published, std::memory_order_release,
-                                              std::memory_order_relaxed));
+                                               std::memory_order_relaxed));
 
         return published;
     }

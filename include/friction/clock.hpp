@@ -19,6 +19,7 @@
 #include <atomic>
 #include <bit>
 #include <chrono>
+#include <cstddef>
 #include <cstdint>
 
 #if defined(FRICTION_ARCH_X86_64) || defined(FRICTION_ARCH_X86_32)
@@ -73,7 +74,7 @@ std::uint64_t calibrateFrequency() noexcept;
 
 /// Monotonic tick source used by every Friction measurement.
 class Clock final {
-public:
+    public:
     /// Raw tick counter. Only differences between two readings are meaningful.
     using Ticks = std::uint64_t;
 
@@ -114,7 +115,9 @@ public:
 
     /// True when `now()` is backed by the hardware time stamp counter rather than
     /// by a library clock.
-    static bool isHardwareCounter() noexcept { return detail::hasInvariantTimeStampCounter(); }
+    static bool isHardwareCounter() noexcept {
+        return detail::hasInvariantTimeStampCounter();
+    }
 
     /// Converts a tick delta to whole nanoseconds.
     static std::uint64_t toNanoseconds(Ticks ticks, Ticks frequency) noexcept {
@@ -124,7 +127,8 @@ public:
         const Ticks wholeSeconds = ticks / frequency;
         const Ticks remainder = ticks - wholeSeconds * frequency;
         return wholeSeconds * kTicksPerSecondFallback +
-               static_cast<Ticks>(static_cast<double>(remainder) * 1.0e9 / static_cast<double>(frequency));
+               static_cast<Ticks>(static_cast<double>(remainder) * 1.0e9 /
+                                  static_cast<double>(frequency));
     }
 
     /// Converts a tick delta to fractional nanoseconds.
@@ -141,14 +145,13 @@ public:
         return toNanosecondsExact(ticks, frequency) / 1.0e6;
     }
 
-private:
+    private:
     Clock() = delete;
 
     static std::uint64_t steadyClockTicks() noexcept {
-        return static_cast<std::uint64_t>(
-            std::chrono::duration_cast<std::chrono::nanoseconds>(
-                std::chrono::steady_clock::now().time_since_epoch())
-                .count());
+        return static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(
+                                              std::chrono::steady_clock::now().time_since_epoch())
+                                              .count());
     }
 
 #if defined(FRICTION_ARCH_X86_64) || defined(FRICTION_ARCH_X86_32)
@@ -189,7 +192,8 @@ inline std::atomic<std::uint64_t>& ticksPerSecondOverride() noexcept {
 /// preempted round always under-reports the frequency and would bias every
 /// timing Friction reports low.
 inline std::uint64_t calibrateFrequency() noexcept {
-    if (const auto overridden = ticksPerSecondOverride().load(std::memory_order_relaxed); overridden != 0) {
+    if (const auto overridden = ticksPerSecondOverride().load(std::memory_order_relaxed);
+        overridden != 0) {
         return overridden;
     }
 

@@ -27,7 +27,7 @@ namespace friction {
 
 /// A counter safe to increment from any thread without contention.
 class Counter final {
-public:
+    public:
     /// Number of shards. Must be a power of two.
     static constexpr std::size_t kShardCount = 8;
 
@@ -38,7 +38,9 @@ public:
         shard().value.fetch_add(delta, std::memory_order_relaxed);
     }
 
-    void operator+=(std::uint64_t delta) noexcept { add(delta); }
+    void operator+=(std::uint64_t delta) noexcept {
+        add(delta);
+    }
 
     /// Sum across every shard. Costs one pass over the shards, so it belongs off
     /// the hot path.
@@ -62,7 +64,7 @@ public:
         }
     }
 
-private:
+    private:
     /// One counter line. Padding keeps two counters from landing on the same one.
     struct alignas(detail::kCacheLineSize) Shard {
         std::atomic<std::uint64_t> value{0};
@@ -74,13 +76,18 @@ private:
         // hitting the same shard. Threads past the shard count wrap around and
         // share; correctness is unaffected, only the contention profile is.
         static std::atomic<std::size_t> nextThreadOrdinal{0};
-        static thread_local std::size_t ordinal = nextThreadOrdinal.fetch_add(1, std::memory_order_relaxed);
+        static thread_local std::size_t ordinal =
+            nextThreadOrdinal.fetch_add(1, std::memory_order_relaxed);
         return ordinal & (kShardCount - 1);
     }
 
-    [[nodiscard]] const Shard& shard() const noexcept { return shards_[shardIndex()]; }
+    [[nodiscard]] const Shard& shard() const noexcept {
+        return shards_[shardIndex()];
+    }
 
-    [[nodiscard]] Shard& shard() noexcept { return shards_[shardIndex()]; }
+    [[nodiscard]] Shard& shard() noexcept {
+        return shards_[shardIndex()];
+    }
 
     Shard shards_[kShardCount];
 };
@@ -94,7 +101,7 @@ private:
 /// Registering a new name appends to the set and is therefore not thread-safe;
 /// do it before starting the threads that will increment.
 class CounterSet final {
-public:
+    public:
     /// Returns the counter called `name`, creating it if this set has not seen it.
     [[nodiscard]] Counter& counter(std::string_view name) {
         for (std::size_t index = 0; index < names_.size(); ++index) {
@@ -108,9 +115,13 @@ public:
     }
 
     /// Name of the counter at `index`, in registration order.
-    [[nodiscard]] std::string_view name(std::size_t index) const noexcept { return names_[index]; }
+    [[nodiscard]] std::string_view name(std::size_t index) const noexcept {
+        return names_[index];
+    }
 
-    [[nodiscard]] std::size_t size() const noexcept { return counters_.size(); }
+    [[nodiscard]] std::size_t size() const noexcept {
+        return counters_.size();
+    }
 
     [[nodiscard]] bool contains(std::string_view name) const noexcept {
         for (const auto& candidate : names_) {
@@ -121,9 +132,13 @@ public:
         return false;
     }
 
-    [[nodiscard]] std::uint64_t value(std::size_t index) const noexcept { return counters_[index]->value(); }
+    [[nodiscard]] std::uint64_t value(std::size_t index) const noexcept {
+        return counters_[index]->value();
+    }
 
-    [[nodiscard]] Counter& operator[](std::size_t index) noexcept { return *counters_[index]; }
+    [[nodiscard]] Counter& operator[](std::size_t index) noexcept {
+        return *counters_[index];
+    }
 
     /// Zeroes every counter.
     void reset() noexcept {
@@ -132,7 +147,7 @@ public:
         }
     }
 
-private:
+    private:
     // unique_ptr keeps each Counter's address fixed as the vector reallocates.
     std::vector<std::string> names_;
     std::vector<std::unique_ptr<Counter>> counters_;

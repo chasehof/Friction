@@ -22,7 +22,6 @@
 #include <friction/clock.hpp>
 #include <friction/counters.hpp>
 #include <friction/detail/registry.hpp>
-#include <friction/detail/report_format.hpp>
 #include <friction/detail/session_state.hpp>
 #include <friction/detail/thread_state.hpp>
 #include <friction/histogram.hpp>
@@ -30,6 +29,7 @@
 #include <friction/report.hpp>
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <string>
 #include <utility>
@@ -52,12 +52,16 @@ struct SessionConfig {
 
 /// Aggregates the samples every thread collected while it was running.
 class Session final {
-public:
+    public:
     /// Opens a session with default settings.
-    [[nodiscard]] static Session start() { return Session(SessionConfig{}); }
+    [[nodiscard]] static Session start() {
+        return Session(SessionConfig{});
+    }
 
     /// Opens a session with the given configuration.
-    [[nodiscard]] static Session start(const SessionConfig& config) { return Session(config); }
+    [[nodiscard]] static Session start(const SessionConfig& config) {
+        return Session(config);
+    }
 
     /// Opens a session.
     ///
@@ -65,7 +69,9 @@ public:
     /// report is then lost. One process-wide recording at a time is a constraint
     /// worth keeping: it is what lets a scope check a single pointer to decide
     /// whether it is measuring anything.
-    explicit Session(const SessionConfig& config = SessionConfig{}) { begin(config); }
+    explicit Session(const SessionConfig& config = SessionConfig{}) {
+        begin(config);
+    }
 
     ~Session() {
         if (state_.recording) {
@@ -116,7 +122,9 @@ public:
     }
 
     /// True until `stop()` runs, or until another session supersedes this one.
-    [[nodiscard]] bool active() const noexcept { return state_.recording; }
+    [[nodiscard]] bool active() const noexcept {
+        return state_.recording;
+    }
 
     /// Wall time since the session opened, in milliseconds.
     [[nodiscard]] double elapsedMilliseconds() const noexcept {
@@ -127,12 +135,16 @@ public:
     ///
     /// Register names during setup, before the threads that will increment them
     /// start, and keep the reference: resolving a name allocates.
-    [[nodiscard]] CounterSet& counters() noexcept { return counters_; }
+    [[nodiscard]] CounterSet& counters() noexcept {
+        return counters_;
+    }
 
     /// The report from `stop()`, or an empty one if the session is still running.
-    [[nodiscard]] const Report& report() const noexcept { return lastReport_; }
+    [[nodiscard]] const Report& report() const noexcept {
+        return lastReport_;
+    }
 
-private:
+    private:
     /// One region's samples from every thread, waiting to be summarized.
     struct MergedZone {
         std::string name;
@@ -195,13 +207,15 @@ private:
         }
 
         // Slowest first, so the top of the report answers "where did the time go".
-        std::sort(merged.begin(), merged.end(), [](const MergedZone& left, const MergedZone& right) {
-            return left.selfTime.sum() > right.selfTime.sum();
-        });
+        std::sort(merged.begin(), merged.end(),
+                  [](const MergedZone& left, const MergedZone& right) {
+                      return left.selfTime.sum() > right.selfTime.sum();
+                  });
 
         double totalSelfNanoseconds = 0.0;
         for (const auto& zone : merged) {
-            totalSelfNanoseconds += Clock::toNanosecondsExact(zone.selfTime.sum(), state_.frequency);
+            totalSelfNanoseconds +=
+                Clock::toNanosecondsExact(zone.selfTime.sum(), state_.frequency);
         }
 
         report.zones.reserve(merged.size());
@@ -211,14 +225,16 @@ private:
 
         report.counters.reserve(counters_.size());
         for (std::size_t index = 0; index < counters_.size(); ++index) {
-            report.counters.push_back(CounterReport{std::string(counters_.name(index)), counters_.value(index)});
+            report.counters.push_back(
+                CounterReport{std::string(counters_.name(index)), counters_.value(index)});
         }
 
         return report;
     }
 
     /// Finds the accumulated samples for a region name, or starts a new set.
-    [[nodiscard]] static MergedZone& mergeInto(std::vector<MergedZone>& merged, const std::string& name,
+    [[nodiscard]] static MergedZone& mergeInto(std::vector<MergedZone>& merged,
+                                               const std::string& name,
                                                const Histogram::Config& config) {
         for (auto& zone : merged) {
             if (zone.name == name) {
@@ -245,17 +261,19 @@ private:
         report.callCount = calls;
         report.inclusiveMilliseconds = inclusiveNanoseconds / 1.0e6;
         report.selfMilliseconds = selfNanoseconds / 1.0e6;
-        report.meanNanoseconds = calls > 0 ? inclusiveNanoseconds / static_cast<double>(calls) : 0.0;
-        report.standardDeviationNanoseconds =
-            Clock::toNanosecondsExact(static_cast<Clock::Ticks>(inclusive.standardDeviation()), frequency);
+        report.meanNanoseconds =
+            calls > 0 ? inclusiveNanoseconds / static_cast<double>(calls) : 0.0;
+        report.standardDeviationNanoseconds = Clock::toNanosecondsExact(
+            static_cast<Clock::Ticks>(inclusive.standardDeviation()), frequency);
         report.minNanoseconds = Clock::toNanoseconds(inclusive.min(), frequency);
         report.p50Nanoseconds = Clock::toNanoseconds(inclusive.median(), frequency);
         report.p90Nanoseconds = Clock::toNanoseconds(inclusive.p90(), frequency);
         report.p99Nanoseconds = Clock::toNanoseconds(inclusive.p99(), frequency);
         report.p999Nanoseconds = Clock::toNanoseconds(inclusive.p999(), frequency);
         report.maxNanoseconds = Clock::toNanoseconds(inclusive.max(), frequency);
-        report.meanCallsPerThread =
-            zone.threadCount > 0 ? static_cast<double>(calls) / static_cast<double>(zone.threadCount) : 0.0;
+        report.meanCallsPerThread = zone.threadCount > 0 ? static_cast<double>(calls) /
+                                                               static_cast<double>(zone.threadCount)
+                                                         : 0.0;
         report.saturated = inclusive.saturated();
         if (totalSelfNanoseconds > 0.0) {
             report.selfPercent = selfNanoseconds / totalSelfNanoseconds * 100.0;
@@ -263,11 +281,13 @@ private:
         return report;
     }
 
-    [[nodiscard]] ProcessReport summarizeProcess(const ProcessStats& end, Clock::Ticks endTicks) const {
+    [[nodiscard]] ProcessReport summarizeProcess(const ProcessStats& end,
+                                                 Clock::Ticks endTicks) const {
         ProcessReport process;
         process.start = startProcess_;
         process.end = end;
-        process.elapsedMilliseconds = Clock::toMilliseconds(endTicks - startTicks_, state_.frequency);
+        process.elapsedMilliseconds =
+            Clock::toMilliseconds(endTicks - startTicks_, state_.frequency);
 
         if (process.start.source == ProcessSource::unknown) {
             return process;
@@ -281,17 +301,19 @@ private:
                                       static_cast<std::int64_t>(startProcess_.residentBytes);
         process.minorFaults = end.minorFaults - startProcess_.minorFaults;
         process.majorFaults = end.majorFaults - startProcess_.majorFaults;
-        process.voluntaryContextSwitches = end.voluntaryContextSwitches - startProcess_.voluntaryContextSwitches;
+        process.voluntaryContextSwitches =
+            end.voluntaryContextSwitches - startProcess_.voluntaryContextSwitches;
         process.involuntaryContextSwitches =
             end.involuntaryContextSwitches - startProcess_.involuntaryContextSwitches;
-        process.userCpuMilliseconds = (end.userCpuNanoseconds - startProcess_.userCpuNanoseconds) / 1'000'000;
+        process.userCpuMilliseconds =
+            (end.userCpuNanoseconds - startProcess_.userCpuNanoseconds) / 1'000'000;
         process.systemCpuMilliseconds =
             (end.systemCpuNanoseconds - startProcess_.systemCpuNanoseconds) / 1'000'000;
         process.threadCount = end.threadCount;
 
         if (process.elapsedMilliseconds > 0.0) {
             const auto cpuMilliseconds = static_cast<double>(process.userCpuMilliseconds) +
-                                          static_cast<double>(process.systemCpuMilliseconds);
+                                         static_cast<double>(process.systemCpuMilliseconds);
             process.cpuUtilizationPercent = cpuMilliseconds / process.elapsedMilliseconds * 100.0;
         }
 

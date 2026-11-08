@@ -72,6 +72,8 @@ namespace friction {
 }
 
 /// Human readable version, "0.1.0".
-[[nodiscard]] constexpr const char* versionString() noexcept { return "0.1.0"; }
+[[nodiscard]] constexpr const char* versionString() noexcept {
+    return "0.1.0";
+}
 
 } // namespace friction

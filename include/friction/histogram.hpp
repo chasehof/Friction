@@ -24,6 +24,7 @@
 #include <algorithm>
 #include <bit>
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <vector>
 
@@ -31,7 +32,7 @@ namespace friction {
 
 /// Fixed-capacity distribution of unsigned samples with O(1) recording.
 class Histogram final {
-public:
+    public:
     /// Digits of relative resolution, 1 through 5.
     ///
     /// Each extra digit roughly quadruples the memory. Latency work is almost
@@ -50,14 +51,17 @@ public:
         std::uint8_t significantFigures = kDefaultSignificantFigures;
     };
 
-    Histogram() noexcept : Histogram(Config{}) {}
+    Histogram() noexcept : Histogram(Config{}) {
+    }
 
     explicit Histogram(const Config& config) noexcept
         : layout_(computeLayout(config.highestTrackableValue, config.significantFigures)),
-          slots_(layout_.slotCount, 0) {}
+          slots_(layout_.slotCount, 0) {
+    }
 
     Histogram(std::uint64_t highestTrackableValue, std::uint8_t significantFigures) noexcept
-        : Histogram(Config{highestTrackableValue, significantFigures}) {}
+        : Histogram(Config{highestTrackableValue, significantFigures}) {
+    }
 
     /// Records one sample, saturating at the configured range rather than growing.
     void record(std::uint64_t value) noexcept {
@@ -110,14 +114,24 @@ public:
         max_ = 0;
     }
 
-    [[nodiscard]] std::uint64_t count() const noexcept { return count_; }
-    [[nodiscard]] std::uint64_t sum() const noexcept { return sum_; }
-    [[nodiscard]] std::uint64_t min() const noexcept { return count_ == 0 ? 0 : min_; }
-    [[nodiscard]] std::uint64_t max() const noexcept { return max_; }
+    [[nodiscard]] std::uint64_t count() const noexcept {
+        return count_;
+    }
+    [[nodiscard]] std::uint64_t sum() const noexcept {
+        return sum_;
+    }
+    [[nodiscard]] std::uint64_t min() const noexcept {
+        return count_ == 0 ? 0 : min_;
+    }
+    [[nodiscard]] std::uint64_t max() const noexcept {
+        return max_;
+    }
 
     /// True when samples have reached the top of the configured range, which
     /// means the reported extremes are floors rather than measurements.
-    [[nodiscard]] bool saturated() const noexcept { return count_ != 0 && max_ >= layout_.highestTrackableValue; }
+    [[nodiscard]] bool saturated() const noexcept {
+        return count_ != 0 && max_ >= layout_.highestTrackableValue;
+    }
 
     [[nodiscard]] double mean() const noexcept {
         return count_ == 0 ? 0.0 : static_cast<double>(sum_) / static_cast<double>(count_);
@@ -144,7 +158,9 @@ public:
         return spread > 0.0 ? spread : 0.0;
     }
 
-    [[nodiscard]] double standardDeviation() const noexcept { return std::sqrt(variance()); }
+    [[nodiscard]] double standardDeviation() const noexcept {
+        return std::sqrt(variance());
+    }
 
     /// Highest sample at or below the given percentile, clamped to [0, 100].
     ///
@@ -164,8 +180,8 @@ public:
         if (percentile <= 0.0) {
             return min_;
         }
-        const auto target =
-            static_cast<std::uint64_t>(std::min(percentile, 100.0) / 100.0 * static_cast<double>(count_));
+        const auto target = static_cast<std::uint64_t>(std::min(percentile, 100.0) / 100.0 *
+                                                       static_cast<double>(count_));
 
         std::uint64_t bucketTop = max_;
         std::uint64_t observed = 0;
@@ -180,25 +196,37 @@ public:
         return std::min(bucketTop, std::max(min_, max_));
     }
 
-    [[nodiscard]] std::uint64_t median() const noexcept { return valueAtPercentile(50.0); }
-    [[nodiscard]] std::uint64_t p90() const noexcept { return valueAtPercentile(90.0); }
-    [[nodiscard]] std::uint64_t p99() const noexcept { return valueAtPercentile(99.0); }
-    [[nodiscard]] std::uint64_t p999() const noexcept { return valueAtPercentile(99.9); }
+    [[nodiscard]] std::uint64_t median() const noexcept {
+        return valueAtPercentile(50.0);
+    }
+    [[nodiscard]] std::uint64_t p90() const noexcept {
+        return valueAtPercentile(90.0);
+    }
+    [[nodiscard]] std::uint64_t p99() const noexcept {
+        return valueAtPercentile(99.0);
+    }
+    [[nodiscard]] std::uint64_t p999() const noexcept {
+        return valueAtPercentile(99.9);
+    }
 
     /// Heap the histogram occupies, in bytes.
-    [[nodiscard]] std::size_t memoryUsage() const noexcept { return slots_.size() * sizeof(std::uint32_t); }
+    [[nodiscard]] std::size_t memoryUsage() const noexcept {
+        return slots_.size() * sizeof(std::uint32_t);
+    }
 
     /// Heap a histogram with the given geometry would occupy, without building it.
     [[nodiscard]] static std::size_t memoryUsageFor(std::uint64_t highestTrackableValue,
                                                     std::uint8_t significantFigures) noexcept {
-        return computeLayout(highestTrackableValue, significantFigures).slotCount * sizeof(std::uint32_t);
+        return computeLayout(highestTrackableValue, significantFigures).slotCount *
+               sizeof(std::uint32_t);
     }
 
     /// Smallest and largest values that land in the same bucket as `value`.
     ///
     /// Every value the histogram reports for that bucket lies between the two, so
     /// this is the accuracy a percentile answer comes with.
-    [[nodiscard]] std::pair<std::uint64_t, std::uint64_t> bucketBoundsFor(std::uint64_t value) const noexcept {
+    [[nodiscard]] std::pair<std::uint64_t, std::uint64_t>
+    bucketBoundsFor(std::uint64_t value) const noexcept {
         const auto index = slotFor(value);
         return {lowestEquivalentValue(layout_, index), highestEquivalentValue(layout_, index)};
     }
@@ -213,7 +241,7 @@ public:
         return 1.0 / static_cast<double>(layout_.subBucketHalfCount);
     }
 
-private:
+    private:
     static constexpr std::uint64_t kUnset = ~0ull;
 
     /// Slot geometry, derived once at construction and never written again.
@@ -232,12 +260,13 @@ private:
                : (exponent == 2) ? 100ull
                : (exponent == 3) ? 1'000ull
                : (exponent == 4) ? 10'000ull
-                                  : 100'000ull;
+                                 : 100'000ull;
     }
 
     /// Maps a value onto its slot, folding everything past the top of the range
     /// into the boundary slot so percentiles keep reporting a bounded number.
-    [[nodiscard]] static constexpr std::uint32_t slotFor(const Layout& layout, std::uint64_t value) noexcept {
+    [[nodiscard]] static constexpr std::uint32_t slotFor(const Layout& layout,
+                                                         std::uint64_t value) noexcept {
         if (value >= layout.highestTrackableValue) {
             return layout.saturatedIndex;
         }
@@ -245,7 +274,8 @@ private:
     }
 
     /// Maps an in-range value onto its slot.
-    [[nodiscard]] static constexpr std::uint32_t rawSlotFor(const Layout& layout, std::uint64_t value) noexcept {
+    [[nodiscard]] static constexpr std::uint32_t rawSlotFor(const Layout& layout,
+                                                            std::uint64_t value) noexcept {
         const std::uint32_t bucketIndex = bucketFor(layout, value);
         const auto subBucketIndex = static_cast<std::uint32_t>(value >> bucketIndex);
         const auto baseIndex = (bucketIndex + 1) << layout.subBucketHalfCountMagnitude;
@@ -254,16 +284,18 @@ private:
 
     /// The bucket a value belongs to. Values below `subBucketCount` get one slot
     /// each; above that, the bucket index falls straight out of the value's width.
-    [[nodiscard]] static constexpr std::uint32_t bucketFor(const Layout& layout, std::uint64_t value) noexcept {
+    [[nodiscard]] static constexpr std::uint32_t bucketFor(const Layout& layout,
+                                                           std::uint64_t value) noexcept {
         if (value < layout.subBucketCount) {
             return 0;
         }
-        return static_cast<std::uint32_t>(std::bit_width(value)) - layout.subBucketHalfCountMagnitude - 1;
+        return static_cast<std::uint32_t>(std::bit_width(value)) -
+               layout.subBucketHalfCountMagnitude - 1;
     }
 
     /// Smallest value that can land in a slot, the inverse of `slotFor`.
     [[nodiscard]] static constexpr std::uint64_t lowestEquivalentValue(const Layout& layout,
-                                                                      std::size_t index) noexcept {
+                                                                       std::size_t index) noexcept {
         if (index < layout.subBucketCount) {
             return index;
         }
@@ -271,36 +303,41 @@ private:
     }
 
     /// Largest value that can land in a slot.
-    [[nodiscard]] static constexpr std::uint64_t highestEquivalentValue(const Layout& layout,
-                                                                       std::size_t index) noexcept {
+    [[nodiscard]] static constexpr std::uint64_t
+    highestEquivalentValue(const Layout& layout, std::size_t index) noexcept {
         if (index < layout.subBucketCount) {
             return index;
         }
-        return ((static_cast<std::uint64_t>(subBucketOf(layout, index)) + 1) << bucketOf(layout, index)) - 1;
+        return ((static_cast<std::uint64_t>(subBucketOf(layout, index)) + 1)
+                << bucketOf(layout, index)) -
+               1;
     }
 
     /// The sub-index a slot covers, within `[subBucketHalfCount, subBucketCount)`.
     [[nodiscard]] static constexpr std::uint32_t subBucketOf(const Layout& layout,
-                                                                std::size_t index) noexcept {
+                                                             std::size_t index) noexcept {
         return static_cast<std::uint32_t>(index & (layout.subBucketHalfCount - 1)) +
                layout.subBucketHalfCount;
     }
 
     /// The bucket a slot covers.
     [[nodiscard]] static constexpr std::uint32_t bucketOf(const Layout& layout,
-                                                             std::size_t index) noexcept {
+                                                          std::size_t index) noexcept {
         return static_cast<std::uint32_t>(index >> layout.subBucketHalfCountMagnitude) - 1;
     }
 
     static constexpr Layout computeLayout(std::uint64_t highestTrackableValue,
-                                           std::uint8_t significantFigures) noexcept {
-        const auto digits = static_cast<std::uint8_t>(std::clamp<std::uint16_t>(significantFigures, 1, 5));
+                                          std::uint8_t significantFigures) noexcept {
+        const auto digits =
+            static_cast<std::uint8_t>(std::clamp<std::uint16_t>(significantFigures, 1, 5));
 
         // The axis gets 2*10^digits linear slots before the doubling begins; the
         // next power of two above that count sets the width of the first bucket.
         const std::uint64_t slotsForFullResolution = 2 * powerOfTen(digits);
-        const auto subBucketCountMagnitude = static_cast<std::uint8_t>(std::bit_width(slotsForFullResolution - 1));
-        const auto subBucketHalfCountMagnitude = static_cast<std::uint8_t>(subBucketCountMagnitude - 1);
+        const auto subBucketCountMagnitude =
+            static_cast<std::uint8_t>(std::bit_width(slotsForFullResolution - 1));
+        const auto subBucketHalfCountMagnitude =
+            static_cast<std::uint8_t>(subBucketCountMagnitude - 1);
         const auto subBucketCount = std::uint32_t{1} << subBucketCountMagnitude;
         const auto subBucketHalfCount = subBucketCount / 2;
 
@@ -313,13 +350,19 @@ private:
             ++bucketCount;
         }
 
-        Layout layout{subBucketHalfCountMagnitude, subBucketCount, subBucketHalfCount,
-                      (bucketCount + 1) * subBucketHalfCount, 0, highestTrackableValue};
+        Layout layout{subBucketHalfCountMagnitude,
+                      subBucketCount,
+                      subBucketHalfCount,
+                      (bucketCount + 1) * subBucketHalfCount,
+                      0,
+                      highestTrackableValue};
         layout.saturatedIndex = rawSlotFor(layout, highestTrackableValue);
         return layout;
     }
 
-    [[nodiscard]] std::size_t slotFor(std::uint64_t value) const noexcept { return slotFor(layout_, value); }
+    [[nodiscard]] std::size_t slotFor(std::uint64_t value) const noexcept {
+        return slotFor(layout_, value);
+    }
 
     [[nodiscard]] std::uint64_t highestEquivalentValue(std::size_t index) const noexcept {
         return highestEquivalentValue(layout_, index);

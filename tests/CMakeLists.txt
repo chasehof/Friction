@@ -56,8 +56,14 @@ target_compile_features(friction_single_include_tests PRIVATE cxx_std_20)
 
 if(MSVC)
     target_compile_options(friction_single_include_tests PRIVATE /W4 /permissive-)
+    if(FRICTION_WERROR)
+        target_compile_options(friction_single_include_tests PRIVATE /WX)
+    endif()
 else()
     target_compile_options(friction_single_include_tests PRIVATE ${FRICTION_WARNINGS})
+    if(FRICTION_WERROR)
+        target_compile_options(friction_single_include_tests PRIVATE -Werror)
+    endif()
 endif()
 
 # `<friction/friction.hpp>` resolves to single_include/friction/friction.hpp here,

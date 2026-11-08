@@ -82,7 +82,8 @@ struct ProcessStats {
 
     /// True when scheduling counters were reported.
     [[nodiscard]] bool hasContextSwitches() const noexcept {
-        return source == ProcessSource::procfs && (voluntaryContextSwitches != 0 || involuntaryContextSwitches != 0);
+        return source == ProcessSource::procfs &&
+               (voluntaryContextSwitches != 0 || involuntaryContextSwitches != 0);
     }
 
     /// CPU time from both modes.
@@ -106,7 +107,7 @@ namespace detail {
 
 /// A `/proc` file read into a fixed buffer, so sampling cannot allocate.
 class ProcFile final {
-public:
+    public:
     ProcFile() noexcept = default;
 
     ~ProcFile() noexcept;
@@ -128,10 +129,12 @@ public:
     /// fields 1 and 2 are the pid and the parenthesised command name.
     [[nodiscard]] bool readStatField(std::size_t field, std::uint64_t& out) const noexcept;
 
-private:
+    private:
     static constexpr std::size_t kCapacity = 8192;
 
-    [[nodiscard]] const char* end() const noexcept { return buffer_ + size_; }
+    [[nodiscard]] const char* end() const noexcept {
+        return buffer_ + size_;
+    }
 
     /// Locates the start of the value following `key`, or null if the key is
     /// absent. Only matches at the start of a line, so `RssAnon` cannot be
@@ -142,7 +145,7 @@ private:
     /// Parses a decimal integer at `cursor` and leaves it on the first character
     /// that is not part of the number, so the caller can read a unit suffix.
     [[nodiscard]] static bool parseUnsigned(const char*& cursor, const char* end,
-                                           std::uint64_t& out) noexcept;
+                                            std::uint64_t& out) noexcept;
 
     char buffer_[kCapacity]{};
     std::size_t size_ = 0;
@@ -186,7 +189,8 @@ inline const char* ProcFile::skipSpaces(const char* cursor, const char* end) noe
     return cursor;
 }
 
-inline bool ProcFile::parseUnsigned(const char*& cursor, const char* end, std::uint64_t& out) noexcept {
+inline bool ProcFile::parseUnsigned(const char*& cursor, const char* end,
+                                    std::uint64_t& out) noexcept {
     cursor = skipSpaces(cursor, end);
     if (cursor == end || *cursor < '0' || *cursor > '9') {
         return false;
@@ -207,8 +211,8 @@ inline const char* ProcFile::findValueFor(std::string_view key) const noexcept {
             (offset == 0 || buffer_[offset - 1] == '\n')) {
             return buffer_ + offset + key.size();
         }
-        const auto* lineBreak = static_cast<const char*>(
-            std::memchr(buffer_ + offset, '\n', size_ - offset));
+        const auto* lineBreak =
+            static_cast<const char*>(std::memchr(buffer_ + offset, '\n', size_ - offset));
         if (lineBreak == nullptr) {
             return nullptr;
         }
@@ -295,15 +299,17 @@ namespace detail {
 }
 
 /// Fills in the CPU time and page fault counters every POSIX platform provides.
-inline void readResourceUsage(ProcessStats& stats) noexcept {
+/// Returns false when the kernel would not supply them.
+[[nodiscard]] inline bool readResourceUsage(ProcessStats& stats) noexcept {
     rusage usage{};
     if (::getrusage(RUSAGE_SELF, &usage) != 0) {
-        return;
+        return false;
     }
     stats.userCpuNanoseconds = timevalToNanoseconds(usage.ru_utime);
     stats.systemCpuNanoseconds = timevalToNanoseconds(usage.ru_stime);
     stats.minorFaults = static_cast<std::uint64_t>(usage.ru_minflt);
     stats.majorFaults = static_cast<std::uint64_t>(usage.ru_majflt);
+    return true;
 }
 
 } // namespace detail
@@ -322,12 +328,11 @@ inline void readResourceUsage(ProcessStats& stats) noexcept {
     ProcessStats stats;
 
 #if defined(FRICTION_OS_LINUX)
-    stats.source = ProcessSource::procfs;
-
     // /proc/self/status carries memory and scheduling in one read; the field we
     // want for threads lives in /proc/self/stat, where it costs a second read.
     detail::ProcFile status;
-    if (status.open("/proc/self/status")) {
+    const bool haveStatus = status.open("/proc/self/status");
+    if (haveStatus) {
         const bool sawResident = status.findByteCount("VmRSS:", stats.residentBytes);
         (void)status.findByteCount("VmHWM:", stats.peakResidentBytes);
         (void)status.findByteCount("VmSize:", stats.virtualBytes);
@@ -339,18 +344,24 @@ inline void readResourceUsage(ProcessStats& stats) noexcept {
     }
 
     detail::ProcFile stat;
-    if (stat.open("/proc/self/stat")) {
+    const bool haveStat = stat.open("/proc/self/stat");
+    if (haveStat) {
         std::uint64_t threads = 0;
         if (stat.readStatField(20, threads)) {
             stats.threadCount = static_cast<std::uint32_t>(threads);
         }
     }
 
-    detail::readResourceUsage(stats);
+    const bool haveResourceUsage = detail::readResourceUsage(stats);
+    if (haveStatus || haveStat) {
+        stats.source = ProcessSource::procfs;
+    } else {
+        stats.source = haveResourceUsage ? ProcessSource::rusage : ProcessSource::unknown;
+    }
 
 #elif defined(FRICTION_OS_APPLE)
-    stats.source = ProcessSource::rusage;
-    detail::readResourceUsage(stats);
+    stats.source =
+        detail::readResourceUsage(stats) ? ProcessSource::rusage : ProcessSource::unknown;
 
 #else
     stats.source = ProcessSource::unknown;

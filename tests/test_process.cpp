@@ -72,9 +72,7 @@ FRICTION_TEST(process, cpu_time_only_moves_forward) {
 FRICTION_TEST(process, counts_the_threads_it_has) {
     const ProcessStats before = friction::readProcessStats();
 
-    std::thread worker([] {
-        std::this_thread::sleep_for(std::chrono::milliseconds(20));
-    });
+    std::thread worker([] { std::this_thread::sleep_for(std::chrono::milliseconds(20)); });
 
     // The count is read while the worker is alive.
     const ProcessStats during = friction::readProcessStats();

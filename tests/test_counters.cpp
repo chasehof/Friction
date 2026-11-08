@@ -102,7 +102,6 @@ FRICTION_TEST(counter_set, returns_the_same_counter_for_the_same_name) {
     Counter& again = counters.counter("allocations");
     Counter& other = counters.counter("deallocations");
 
-
     CHECK_EQ(&first, &again);
     CHECK(&first != &other);
     CHECK_EQ(counters.size(), std::size_t{2});

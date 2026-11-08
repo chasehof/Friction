@@ -36,23 +36,30 @@ namespace friction {
 /// Movable, so a scope can be held in a container or handed to a function that
 /// decides when to finish it. A moved-from scope records nothing.
 class ScopedZone final {
-public:
+    public:
     ScopedZone() noexcept = default;
 
-    ScopedZone(std::string_view name) noexcept { enter(name); }
+    ScopedZone(std::string_view name) noexcept {
+        enter(name);
+    }
 
     ScopedZone(const ScopedZone&) = delete;
     ScopedZone& operator=(const ScopedZone&) = delete;
 
     ScopedZone(ScopedZone&& other) noexcept
-        : state_(std::exchange(other.state_, nullptr)), start_(std::exchange(other.start_, 0)) {}
+        : state_(std::exchange(other.state_, nullptr)), start_(std::exchange(other.start_, 0)) {
+    }
 
     ScopedZone& operator=(ScopedZone&&) = delete;
 
-    ~ScopedZone() noexcept { close(); }
+    ~ScopedZone() noexcept {
+        close();
+    }
 
     /// True while this scope is actually recording.
-    [[nodiscard]] bool active() const noexcept { return state_ != nullptr; }
+    [[nodiscard]] bool active() const noexcept {
+        return state_ != nullptr;
+    }
 
     /// Ends the scope early. Calling it twice, or letting the destructor run
     /// afterwards, is harmless.
@@ -63,7 +70,7 @@ public:
         }
     }
 
-private:
+    private:
     void enter(std::string_view name) noexcept {
         const detail::SessionState* const session = detail::activeSession();
         if (FRICTION_UNLIKELY(session == nullptr)) {
@@ -107,4 +114,7 @@ private:
 /// Getting this wrong is silent in one direction only: a zone left open when the
 /// session stops loses its sample, and a zone closed early measures less than it
 /// wrapped. Neither shows up as an error.
-#define FRICTION_ZONE(name) ::friction::ScopedZone FRICTION_DETAIL_ZONE_VARIABLE(__LINE__) { name }
+#define FRICTION_ZONE(name)                                                                        \
+    ::friction::ScopedZone FRICTION_DETAIL_ZONE_VARIABLE(__LINE__) {                               \
+        name                                                                                       \
+    }

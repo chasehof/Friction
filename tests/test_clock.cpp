@@ -118,9 +118,11 @@ FRICTION_TEST(clock, is_consistent_across_threads) {
         CHECK(observation.afterTicks >= observation.beforeTicks);
 
         const double wallBefore =
-            std::chrono::duration<double, std::nano>(observation.beforeWall.time_since_epoch()).count();
+            std::chrono::duration<double, std::nano>(observation.beforeWall.time_since_epoch())
+                .count();
         const double wallAfter =
-            std::chrono::duration<double, std::nano>(observation.afterWall.time_since_epoch()).count();
+            std::chrono::duration<double, std::nano>(observation.afterWall.time_since_epoch())
+                .count();
 
         const double tickBefore = static_cast<double>(observation.beforeTicks) / frequency;
         const double tickAfter = static_cast<double>(observation.afterTicks) / frequency;

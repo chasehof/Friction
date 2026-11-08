@@ -8,8 +8,12 @@
 
 #include <friction/friction.hpp>
 
+#include <array>
 #include <atomic>
 #include <barrier>
+#include <cstddef>
+#include <string>
+#include <string_view>
 #include <thread>
 #include <vector>
 
@@ -94,7 +98,9 @@ FRICTION_TEST(session, stopping_clears_the_active_flag) {
 
 FRICTION_TEST(session, stop_is_idempotent) {
     Session session = Session::start();
-    { FRICTION_ZONE("once"); }
+    {
+        FRICTION_ZONE("once");
+    }
     const Report first = session.stop();
     const Report second = session.stop();
 
@@ -252,7 +258,9 @@ FRICTION_TEST(session, a_new_session_supersedes_the_old_one) {
     Session first = Session::start();
     Session second = Session::start();
 
-    { FRICTION_ZONE("after_the_second"); }
+    {
+        FRICTION_ZONE("after_the_second");
+    }
     const Report report = second.stop();
 
     CHECK_FALSE(first.active());
@@ -270,7 +278,9 @@ FRICTION_TEST(session, stopping_on_destruction) {
     }
     CHECK(friction::detail::activeSession() == nullptr);
 
-    { FRICTION_ZONE("after_destruction"); }
+    {
+        FRICTION_ZONE("after_destruction");
+    }
     Session third = Session::start();
     const Report report = third.stop();
     CHECK(report.find("scoped") == nullptr);
@@ -314,7 +324,9 @@ FRICTION_TEST(session, can_skip_process_sampling) {
     config.sampleProcess = false;
 
     Session session = Session::start(config);
-    { FRICTION_ZONE("unmeasured_process"); }
+    {
+        FRICTION_ZONE("unmeasured_process");
+    }
     const Report report = session.stop();
 
     CHECK_FALSE(report.process.supported());
@@ -372,6 +384,59 @@ FRICTION_TEST(session, a_scope_can_be_moved) {
     }
     const Report report = session.stop();
     CHECK_EQ(report.find("moved")->callCount, std::uint64_t{1});
+}
+
+FRICTION_TEST(session, one_name_from_two_call_sites_is_one_region) {
+    // Region lookup keys on the address of the name literal, so a repeated
+    // spelling at a different call site is a different address. It still has to
+    // land in the same region, or the report would split one logical region in
+    // two and every caller that reused a name would pay a text comparison.
+    const char first[] = "shared.region";
+    const char second[] = "shared.region";
+    CHECK(std::string_view(first).data() != std::string_view(second).data());
+
+    Session session = Session::start();
+    {
+        FRICTION_ZONE(first);
+    }
+    {
+        FRICTION_ZONE(second);
+    }
+    {
+        FRICTION_ZONE(first);
+    }
+    const Report report = session.stop();
+
+    CHECK_EQ(report.zones.size(), std::size_t{1});
+    const auto* zone = report.find("shared.region");
+    CHECK(zone != nullptr);
+    CHECK_EQ(zone->callCount, std::uint64_t{3});
+}
+
+FRICTION_TEST(session, more_regions_than_the_lookup_table_still_record) {
+    // The per-thread lookup table is finite. Once it is full, new regions have to
+    // fall back to the linear scan rather than overwrite an existing entry or
+    // drop the sample.
+    constexpr std::size_t kRegions = 200; // deliberately more than the table holds
+    std::array<std::string, kRegions> names;
+    for (std::size_t index = 0; index < names.size(); ++index) {
+        names[index] = "region." + std::to_string(index);
+    }
+
+    Session session = Session::start();
+    for (const auto& name : names) {
+        friction::ScopedZone zone(name);
+    }
+    const Report report = session.stop();
+
+    CHECK_EQ(report.zones.size(), kRegions);
+    for (const auto& name : names) {
+        const auto* zone = report.find(name);
+        CHECK(zone != nullptr);
+        if (zone != nullptr) {
+            CHECK_EQ(zone->callCount, std::uint64_t{1});
+        }
+    }
 }
 
 FRICTION_TEST(session, elapsed_time_advances_and_is_reported_at_stop) {

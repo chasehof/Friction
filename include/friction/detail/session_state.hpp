@@ -12,6 +12,7 @@
 ///
 ///
 #include <atomic>
+#include <cstdint>
 
 #include <friction/histogram.hpp>
 

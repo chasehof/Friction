@@ -50,11 +50,11 @@ FRICTION_TEST(overhead, a_scope_costs_nanoseconds) {
 
     // The first visit to a region allocates its bookkeeping, so warm it up before
     // measuring: this is the steady state cost, not the one-off setup.
-    { FRICTION_ZONE("overhead.zone"); }
-
-    const double perScope = averageNanosecondsPer([] {
+    {
         FRICTION_ZONE("overhead.zone");
-    });
+    }
+
+    const double perScope = averageNanosecondsPer([] { FRICTION_ZONE("overhead.zone"); });
 
     session.stop();
 
@@ -70,7 +70,9 @@ FRICTION_TEST(overhead, an_empty_scope_does_not_swamp_the_work_it_wraps) {
     // measurable rather than distorted -- so this measures the distortion
     // directly instead of comparing against a hand-picked constant.
     Session session = Session::start();
-    { FRICTION_ZONE("overhead.wrapped"); }
+    {
+        FRICTION_ZONE("overhead.wrapped");
+    }
 
     // A few hundred nanoseconds of arithmetic, about where a real leaf function
     // lands. The result has to escape into a volatile, or the compiler folds the
@@ -113,11 +115,11 @@ FRICTION_TEST(overhead, an_empty_scope_does_not_swamp_the_work_it_wraps) {
 FRICTION_TEST(overhead, nested_scopes_do_not_get_much_more_expensive) {
     SKIP_IF_SANITIZED("timing assertions are meaningless under a sanitizer");
     Session session = Session::start();
-    { FRICTION_ZONE("overhead.outer"); }
-
-    const double perOuter = averageNanosecondsPer([] {
+    {
         FRICTION_ZONE("overhead.outer");
-    });
+    }
+
+    const double perOuter = averageNanosecondsPer([] { FRICTION_ZONE("overhead.outer"); });
     const double perNestedPair = averageNanosecondsPer([] {
         FRICTION_ZONE("overhead.outer");
         FRICTION_ZONE("overhead.outer");
@@ -164,9 +166,7 @@ FRICTION_TEST(overhead, instrumentation_left_in_the_build_is_almost_free) {
     // costs a load and a branch. This is the number that has to stay negligible.
     CHECK(friction::detail::activeSession() == nullptr);
 
-    const double perScope = averageNanosecondsPer([] {
-        FRICTION_ZONE("overhead.disabled");
-    });
+    const double perScope = averageNanosecondsPer([] { FRICTION_ZONE("overhead.disabled"); });
 
     std::printf("    scope with no session      %6.1f ns\n", perScope);
     CHECK(perScope < kDisabledZoneCeilingNanoseconds);

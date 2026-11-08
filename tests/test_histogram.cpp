@@ -66,7 +66,7 @@ FRICTION_TEST(histogram, every_bucket_contains_its_own_value) {
         const auto [lowest, highest] = histogram.bucketBoundsFor(value);
         if (!(lowest <= value && value <= highest)) {
             CHECK_EQ(std::to_string(value) + " not inside [" + std::to_string(lowest) + ", " +
-                        std::to_string(highest) + "]",
+                         std::to_string(highest) + "]",
                      std::string("bucket bounds"));
         }
     }
@@ -83,7 +83,8 @@ FRICTION_TEST(histogram, bucket_width_stays_within_the_configured_bound) {
         for (int sample = 0; sample < 20'000; ++sample) {
             const auto value = distribution(random);
             const auto [lowest, highest] = histogram.bucketBoundsFor(value);
-            const double relative = static_cast<double>(highest - lowest) / static_cast<double>(highest);
+            const double relative =
+                static_cast<double>(highest - lowest) / static_cast<double>(highest);
             if (relative > bound + 1.0e-12) {
                 CHECK_NEAR(relative, bound, 1.0e-9);
             }
@@ -212,8 +213,8 @@ FRICTION_TEST(histogram, computes_a_real_standard_deviation) {
 }
 
 FRICTION_TEST(histogram, memory_estimate_matches_reality) {
-    const auto estimate =
-        Histogram::memoryUsageFor(Histogram::kDefaultHighestTrackableValue, Histogram::kDefaultSignificantFigures);
+    const auto estimate = Histogram::memoryUsageFor(Histogram::kDefaultHighestTrackableValue,
+                                                    Histogram::kDefaultSignificantFigures);
     const Histogram histogram;
     CHECK_EQ(estimate, histogram.memoryUsage());
     CHECK(estimate > 0);

@@ -11,12 +11,14 @@
 ///
 ///
 #include <cmath>
+#include <cstddef>
 #include <cstdio>
 #include <cstdlib>
 #include <exception>
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <vector>
 
 namespace friction::test {
@@ -36,7 +38,7 @@ inline constexpr bool sanitized() noexcept {
 #if defined(__SANITIZE_ADDRESS__) || defined(__SANITIZE_THREAD__)
     return true;
 #elif defined(__has_feature)
-#if __has_feature(address_sanitizer) || __has_feature(thread_sanitizer) || \
+#if __has_feature(address_sanitizer) || __has_feature(thread_sanitizer) ||                         \
     __has_feature(memory_sanitizer)
     return true;
 #else
@@ -113,7 +115,8 @@ inline int runAll(std::string_view filter = {}) {
             std::printf("[  FAILED  ] %s\n    %s\n", full.c_str(), failure.message.c_str());
         } catch (const std::exception& error) {
             failures.push_back(full + "\n    unexpected exception: " + error.what());
-            std::printf("[  FAILED  ] %s\n    unexpected exception: %s\n", full.c_str(), error.what());
+            std::printf("[  FAILED  ] %s\n    unexpected exception: %s\n", full.c_str(),
+                        error.what());
         }
         std::fflush(stdout);
     }
@@ -131,56 +134,55 @@ inline int runAll(std::string_view filter = {}) {
 
 } // namespace friction::test
 
-#define FRICTION_TEST(suite, name)                                                                            \
-    static void suite##_##name();                                                                            \
-    static const ::friction::test::Registrar suite##_##name##_registrar{#suite, #name, &suite##_##name};       \
+#define FRICTION_TEST(suite, name)                                                                 \
+    static void suite##_##name();                                                                  \
+    static const ::friction::test::Registrar suite##_##name##_registrar{#suite, #name,             \
+                                                                        &suite##_##name};          \
     static void suite##_##name()
 
-#define CHECK(expression)                                                                                     \
-    do {                                                                                                      \
-        if (!(expression)) {                                                                                  \
-            ::friction::test::fail(__FILE__, __LINE__, "expected " #expression);                              \
-        }                                                                                                     \
+#define CHECK(expression)                                                                          \
+    do {                                                                                           \
+        if (!(expression)) {                                                                       \
+            ::friction::test::fail(__FILE__, __LINE__, "expected " #expression);                   \
+        }                                                                                          \
     } while (false)
 
-#define CHECK_FALSE(expression)                                                                               \
-    do {                                                                                                      \
-        if ((expression)) {                                                                                   \
-            ::friction::test::fail(__FILE__, __LINE__, "expected not " #expression);                          \
-        }                                                                                                     \
+#define CHECK_FALSE(expression)                                                                    \
+    do {                                                                                           \
+        if ((expression)) {                                                                        \
+            ::friction::test::fail(__FILE__, __LINE__, "expected not " #expression);               \
+        }                                                                                          \
     } while (false)
 
-#define CHECK_EQ(actual, expected)                                                                            \
-    do {                                                                                                      \
-        const auto actualValue = (actual);                                                                    \
-        const auto expectedValue = (expected);                                                                \
-        if (!(actualValue == expectedValue)) {                                                                \
-            ::friction::test::fail(__FILE__, __LINE__, std::string(#actual) + " is " +                      \
-                                                               ::friction::test::describe(actualValue) +     \
-                                                               ", expected " +                               \
-                                                               ::friction::test::describe(expectedValue));    \
-        }                                                                                                     \
+#define CHECK_EQ(actual, expected)                                                                 \
+    do {                                                                                           \
+        const auto actualValue = (actual);                                                         \
+        const auto expectedValue = (expected);                                                     \
+        if (!(actualValue == expectedValue)) {                                                     \
+            ::friction::test::fail(__FILE__, __LINE__,                                             \
+                                   std::string(#actual) + " is " +                                 \
+                                       ::friction::test::describe(actualValue) + ", expected " +   \
+                                       ::friction::test::describe(expectedValue));                 \
+        }                                                                                          \
     } while (false)
 
-#define CHECK_NEAR(actual, expected, tolerance)                                                               \
-    do {                                                                                                      \
-        const double actualValue = static_cast<double>(actual);                                               \
-        const double expectedValue = static_cast<double>(expected);                                           \
-        if (std::fabs(actualValue - expectedValue) > (tolerance)) {                                           \
-            ::friction::test::fail(__FILE__, __LINE__, std::string(#actual) + " is " +                      \
-                                                               ::friction::test::describe(actualValue) +     \
-                                                               ", expected " +                               \
-                                                               ::friction::test::describe(expectedValue) +   \
-                                                               " within " +                                  \
-                                                               ::friction::test::describe(                   \
-                                                                   static_cast<double>(tolerance)));         \
-        }                                                                                                     \
+#define CHECK_NEAR(actual, expected, tolerance)                                                    \
+    do {                                                                                           \
+        const double actualValue = static_cast<double>(actual);                                    \
+        const double expectedValue = static_cast<double>(expected);                                \
+        if (std::fabs(actualValue - expectedValue) > (tolerance)) {                                \
+            ::friction::test::fail(                                                                \
+                __FILE__, __LINE__,                                                                \
+                std::string(#actual) + " is " + ::friction::test::describe(actualValue) +          \
+                    ", expected " + ::friction::test::describe(expectedValue) + " within " +       \
+                    ::friction::test::describe(static_cast<double>(tolerance)));                   \
+        }                                                                                          \
     } while (false)
 
 /// Stands the test down when the build makes its premise false.
-#define SKIP_IF_SANITIZED(reason)                                                                             \
-    do {                                                                                                      \
-        if (::friction::test::sanitized()) {                                                                  \
-            throw ::friction::test::Skipped{reason};                                                          \
-        }                                                                                                     \
+#define SKIP_IF_SANITIZED(reason)                                                                  \
+    do {                                                                                           \
+        if (::friction::test::sanitized()) {                                                       \
+            throw ::friction::test::Skipped{reason};                                               \
+        }                                                                                          \
     } while (false)

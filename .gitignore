@@ -87,3 +87,7 @@ local_build/
 *.tmp
 *.bak
 *.log
+
+# Python bytecode (tools/amalgamate.py)
+__pycache__/
+*.py[cod]
